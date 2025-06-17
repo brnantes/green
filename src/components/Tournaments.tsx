@@ -1,19 +1,19 @@
-
-import { Calendar, Clock, User, Trophy, Flame, Award, CreditCard, Zap, Star, CalendarDays, ChevronRight, Dices, ChevronLeft } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { useTournaments } from '@/hooks/useTournaments';
-import { Badge } from '@/components/ui/badge';
-import { motion } from 'framer-motion';
 import { useState, useEffect, useMemo } from 'react';
+import { useTournaments } from '@/hooks/useTournaments';
+import { format, isToday as isDateToday, addDays, subDays } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
+import "react-datepicker/dist/react-datepicker.css";
+import { motion } from 'framer-motion';
+import { Calendar, ChevronLeft, ChevronRight, Clock, CreditCard, Flame, Trophy, User, Zap, Star, Award } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 const Tournaments = () => {
   const { tournaments, loading } = useTournaments();
-  const [featuredTournament, setFeaturedTournament] = useState(null);
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [highlightedTournament, setHighlightedTournament] = useState(null);
+  const [gameOfTheDay, setGameOfTheDay] = useState(null);
   const activeDay = useMemo(() => selectedDate.getDay(), [selectedDate]);
 
   console.log('🏆 Tournaments Component - Estado:');
@@ -30,9 +30,13 @@ const Tournaments = () => {
   // Para armazenar as datas que têm torneios (para destacar no calendário)
   const [tournamentDates, setTournamentDates] = useState([]);
   
-  // Efeito para selecionar um torneio em destaque e agrupar os torneios por dia
+  // Efeito para selecionar o jogo do dia e agrupar os torneios por dia
   useEffect(() => {
-    if (!tournaments || tournaments.length === 0) return;
+    if (!tournaments || tournaments.length === 0) {
+      console.log('⚠️ Nenhum torneio disponível');
+      setGameOfTheDay(null);
+      return;
+    }
     
     console.log('🔄 Tournaments Component: Processando', tournaments.length, 'torneios');
     
@@ -105,21 +109,43 @@ const Tournaments = () => {
     // Atualizar as datas com torneios para o calendário
     setTournamentDates(dates);
     
-    // Encontrar um torneio para destacar (prioridade para o dia atual)
-    const currentDayTournaments = tournamentsByDay[today.getDay()]; // Dia atual
+    // Encontrar o jogo do dia (prioridade para o dia selecionado)
+    const selectedDayTournaments = tournamentsByDay[selectedDate.getDay()];
     const dias = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
     
-    if (currentDayTournaments && currentDayTournaments.length > 0) {
-      // Destaque o primeiro torneio do dia atual
-      setFeaturedTournament(currentDayTournaments[0]);
-      console.log(`🌟 Destacando torneio de ${dias[today.getDay()]}:`, currentDayTournaments[0].name);
-    } else if (tournaments.length > 0) {
-      // Se não houver torneio para o dia atual, destaca o primeiro disponível
-      setFeaturedTournament(tournaments[0]);
-      console.log(`🌟 Não há torneios no ${dias[today.getDay()]}. Destacando:`, tournaments[0].name);
+    if (selectedDayTournaments && selectedDayTournaments.length > 0) {
+      // Seleciona o primeiro torneio do dia selecionado
+      setGameOfTheDay(selectedDayTournaments[0]);
+      console.log(`🌟 Jogo do dia para ${dias[selectedDate.getDay()]}: ${selectedDayTournaments[0].name}`);
+    } else {
+      // Procurar o próximo dia com torneios
+      let nextDayWithTournament = null;
+      let daysChecked = 0;
+      
+      // Verificar os próximos 7 dias
+      while (!nextDayWithTournament && daysChecked < 7) {
+        daysChecked++;
+        const nextDay = (selectedDate.getDay() + daysChecked) % 7;
+        if (tournamentsByDay[nextDay].length > 0) {
+          nextDayWithTournament = tournamentsByDay[nextDay][0];
+          console.log(`🌟 Próximo torneio encontrado: ${nextDayWithTournament.name} (${dias[nextDay]})`);
+          break;
+        }
+      }
+      
+      if (nextDayWithTournament) {
+        setGameOfTheDay(nextDayWithTournament);
+      } else if (tournaments.length > 0) {
+        // Se não encontrou nenhum torneio nos próximos dias, usa o primeiro disponível
+        setGameOfTheDay(tournaments[0]);
+        console.log(`🌟 Nenhum torneio encontrado nos próximos dias. Usando o primeiro disponível: ${tournaments[0].name}`);
+      } else {
+        setGameOfTheDay(null);
+        console.log('⚠️ Nenhum torneio disponível para exibir como jogo do dia');
+      }
     }
     
-  }, [tournaments]);
+  }, [tournaments, selectedDate]);
 
   const formatDate = (dateString: string) => {
     try {
@@ -357,7 +383,7 @@ const Tournaments = () => {
   ];
 
   return (
-    <section id="tournaments" className="py-20 bg-poker-black relative overflow-hidden">
+    <div id="tournaments" className="py-20 bg-poker-black relative overflow-hidden">
       {/* Background decorativo */}
       <div className="absolute inset-0 bg-[url('/assets/poker-table-bg.jpg')] bg-cover bg-center opacity-10"></div>
       <div className="absolute inset-0 bg-gradient-to-b from-poker-black/0 via-poker-black/80 to-poker-black"></div>
@@ -375,127 +401,12 @@ const Tournaments = () => {
           transition={{ duration: 0.6 }}
         >
           <h2 className="text-4xl md:text-5xl font-bold mb-4 gradient-text">
-            Torneios Exclusivos Royal Flush
+            Calendário de Torneios
           </h2>
           <p className="text-xl text-gray-300">
-            Experiências premium para verdadeiros amantes do poker
+            Confira o jogo do dia e reserve seu lugar
           </p>
         </motion.div>
-        
-        {/* Torneio em destaque */}
-        {featuredTournament && (
-          <motion.div 
-            className="mb-16"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-          >
-            <Card className="bg-gradient-to-br from-poker-gray-medium/90 to-poker-gray-dark/90 border-2 border-poker-gold/30 overflow-hidden backdrop-blur-sm">
-              <div className="absolute top-0 right-0 bg-poker-gold text-poker-black px-4 py-2 text-sm font-bold rounded-bl-lg flex items-center gap-2 shadow-lg">
-                <Flame className="w-4 h-4" />
-                DESTAQUE
-              </div>
-              
-              <CardContent className="p-0">
-                <div className="grid md:grid-cols-2 gap-0">
-                  {/* Lado esquerdo - Imagem/Visual */}
-                  <div className="relative overflow-hidden h-full min-h-[300px] bg-poker-black/50">
-                    <div className="absolute inset-0 bg-[url('/assets/tournament-featured.jpg')] bg-cover bg-center opacity-70 hover:scale-105 transition-transform duration-700"></div>
-                    <div className="absolute inset-0 bg-gradient-to-r from-poker-black/80 to-transparent"></div>
-                    <div className="absolute bottom-0 left-0 p-8 w-full">
-                      <div className="bg-poker-black/70 backdrop-blur-sm p-4 rounded-lg border border-poker-gold/20">
-                        <h3 className="text-2xl font-bold text-poker-gold mb-2">{featuredTournament.name}</h3>
-                        <p className="text-gray-300">{getDayOfWeek(featuredTournament.date)} | {formatDate(featuredTournament.date)}</p>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Lado direito - Informações */}
-                  <div className="p-8 space-y-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="bg-poker-gold/20 p-2 rounded-full">
-                          <Trophy className="w-6 h-6 text-poker-gold" />
-                        </div>
-                        <div>
-                          <p className="text-gray-400 text-sm">Prêmio Total</p>
-                          <p className="text-xl font-bold text-white">{featuredTournament.prize}</p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <div className="bg-poker-gold/20 p-2 rounded-full">
-                          <Clock className="w-6 h-6 text-poker-gold" />
-                        </div>
-                        <div>
-                          <p className="text-gray-400 text-sm">Horário</p>
-                          <p className="text-xl font-bold text-white">{featuredTournament.time}</p>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="bg-poker-gold/20 p-2 rounded-full">
-                          <CreditCard className="w-6 h-6 text-poker-gold" />
-                        </div>
-                        <div>
-                          <p className="text-gray-400 text-sm">Buy-in</p>
-                          <p className="text-xl font-bold text-white">{featuredTournament.buy_in}</p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <div className="bg-poker-gold/20 p-2 rounded-full">
-                          <User className="w-6 h-6 text-poker-gold" />
-                        </div>
-                        <div>
-                          <p className="text-gray-400 text-sm">Jogadores</p>
-                          <p className="text-xl font-bold text-white">Máx. {featuredTournament.max_players}</p>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {featuredTournament.special_features && (
-                      <div className="mt-6">
-                        <p className="text-gray-400 text-sm mb-2">Características Especiais:</p>
-                        <p className="text-white">{featuredTournament.special_features}</p>
-                      </div>
-                    )}
-                    
-                    {(new Date(featuredTournament.date).getDay() === 1 || new Date(featuredTournament.date).getDay() === 5) && (
-                      <div className="mt-6 bg-poker-gold/10 p-4 rounded-lg border border-poker-gold/30">
-                        <p className="text-poker-gold font-bold mb-2 flex items-center gap-2">
-                          <Flame className="w-5 h-5" /> Torneio FREE
-                        </p>
-                        <ul className="text-gray-200 space-y-2">
-                          <li className="flex items-center gap-2">
-                            <Zap className="w-4 h-4 text-poker-gold" />
-                            <span>Registro tardio até o final do nível 7</span>
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <Zap className="w-4 h-4 text-poker-gold" />
-                            <span>Entrada free até o final do nível 3</span>
-                          </li>
-                        </ul>
-                      </div>
-                    )}
-                    
-                    <Button
-                      className="w-full mt-4 bg-poker-gold hover:bg-poker-gold-light text-poker-black"
-                      onClick={() => {
-                        const msg = `Olá! Gostaria de reservar um lugar para o torneio ${featuredTournament.name} no dia ${formatDate(featuredTournament.date)} às ${featuredTournament.time}.`;
-                        window.open(`https://wa.me/+5511912345678?text=${encodeURIComponent(msg)}`, '_blank');
-                      }}
-                    >
-                      Reservar Lugar
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
         
         {/* Calendário e navegação */}
         <motion.div 
@@ -518,7 +429,7 @@ const Tournaments = () => {
           
           <div className="bg-poker-gray-dark/50 p-4 rounded-lg border border-poker-gold/20 backdrop-blur-sm mb-6">
             <div className="custom-calendar-container">
-              <style jsx global>{`
+              <style dangerouslySetInnerHTML={{ __html: `
                 .react-datepicker {
                   background-color: #1a1a1a !important;
                   border: 1px solid rgba(212, 175, 55, 0.3) !important;
@@ -562,7 +473,7 @@ const Tournaments = () => {
                 .react-datepicker__navigation:hover *::before {
                   border-color: white !important;
                 }
-              `}</style>
+              ` }} />
               
               <div className="flex items-center justify-between mb-2">
                 <div className="text-lg font-bold text-poker-gold flex items-center gap-2">
@@ -583,13 +494,21 @@ const Tournaments = () => {
               
               <DatePicker
                 selected={selectedDate}
-                onChange={(date) => setSelectedDate(date)}
+                onChange={(date) => {
+                  if (date) {
+                    // Garantir que date seja tratado como uma única data
+                    const singleDate = Array.isArray(date) ? date[0] : date;
+                    setSelectedDate(singleDate);
+                    // activeDay é derivado de selectedDate em um useMemo, não precisa ser definido separadamente
+                  }
+                }}
                 inline
+                selectsMultiple={true}
                 highlightDates={tournamentDates}
-                calendarClassName="w-full"
+                calendarClassName="custom-calendar"
                 dayClassName={(date) => {
                   const day = date.getDay();
-                  return tournamentsByDay[day]?.length > 0 ? 'has-tournaments' : null;
+                  return day === 0 || day === 6 ? "weekend-day" : "";
                 }}
                 renderCustomHeader={({ 
                   date, 
@@ -598,25 +517,27 @@ const Tournaments = () => {
                   prevMonthButtonDisabled, 
                   nextMonthButtonDisabled 
                 }) => (
-                  <div className="flex items-center justify-between px-2 py-1">
+                  <div className="flex items-center justify-between px-2 py-2">
                     <button
-                      type="button"
                       onClick={decreaseMonth}
                       disabled={prevMonthButtonDisabled}
-                      className="text-poker-gold hover:text-white disabled:opacity-50"
-                    >
-                      <ChevronLeft className="w-5 h-5" />
-                    </button>
-                    <div className="text-white font-bold">
-                      {date.toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}
-                    </div>
-                    <button
                       type="button"
+                      className="p-1 rounded-full hover:bg-poker-gold/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <ChevronLeft className="w-5 h-5 text-poker-gold" />
+                    </button>
+                    
+                    <div className="text-white font-medium">
+                      {format(date, 'MMMM yyyy', { locale: ptBR })}
+                    </div>
+                    
+                    <button
                       onClick={increaseMonth}
                       disabled={nextMonthButtonDisabled}
-                      className="text-poker-gold hover:text-white disabled:opacity-50"
+                      type="button"
+                      className="p-1 rounded-full hover:bg-poker-gold/20 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <ChevronRight className="w-5 h-5" />
+                      <ChevronRight className="w-5 h-5 text-poker-gold" />
                     </button>
                   </div>
                 )}
@@ -642,174 +563,55 @@ const Tournaments = () => {
               <div className="bg-poker-gray-medium/50 p-2 rounded border border-poker-gold/20 text-sm">
                 <div className="font-bold text-poker-gold">{selectedDate.toLocaleDateString('pt-BR')}</div>
                 <div className="text-gray-300">Data</div>
-              </div>
-            </div>
-          </div>
         </motion.div>
-        
-        {/* Lista de torneios */}
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
-          className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12"
+      ) : (
+        <motion.div 
+          className="mt-8 text-center py-12"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
         >
-          {sortedTournaments
-            .filter(tournament => {
-              try {
-                const isSameDay = (date1, date2) => {
-                  return date1.getDate() === date2.getDate() && 
-                         date1.getMonth() === date2.getMonth() && 
-                         date1.getFullYear() === date2.getFullYear();
-                };
-                
-                // Primeiro tentamos com data formato ISO - verificar se é o mesmo dia calendário
-                if (tournament.date && tournament.date.includes('-')) {
-                  const tournamentDate = new Date(tournament.date);
-                  return isSameDay(tournamentDate, selectedDate);
-                }
-                // Se não for data ISO, verificamos se o dia da semana corresponde
-                else if (typeof tournament.date === 'string') {
-                  const dayLower = tournament.date.toLowerCase();
-                  if (dayLower.includes('domingo') && selectedDate.getDay() === 0) return true;
-                  if (dayLower.includes('segunda') && selectedDate.getDay() === 1) return true;
-                  if (dayLower.includes('terça') && selectedDate.getDay() === 2) return true;
-                  if (dayLower.includes('quarta') && selectedDate.getDay() === 3) return true;
-                  if (dayLower.includes('quinta') && selectedDate.getDay() === 4) return true;
-                  if (dayLower.includes('sexta') && selectedDate.getDay() === 5) return true;
-                  if (dayLower.includes('sábado') && selectedDate.getDay() === 6) return true;
-                  return false;
-                }
-                return false;
-              } catch (error) {
-                console.error('Erro ao filtrar torneio por dia:', error);
-                return false;
-              }
-            })
-            .map((tournament, index) => {
-              const isTodayTournament = isToday(tournament.date);
-              const isUpcomingTournament = isUpcoming(tournament.date);
-              
-              return (
-                <motion.div key={tournament.id} variants={itemVariants}>
-                  <Card 
-                    className={`bg-poker-gray-medium/80 backdrop-blur-sm hover:bg-poker-gray-medium/90 transition-all duration-300 relative overflow-hidden border ${
-                      isTodayTournament 
-                        ? 'border-poker-gold shadow-lg shadow-poker-gold/20' 
-                        : 'border-poker-gold/20'
-                    }`}
-                  >
-                    {isTodayTournament && (
-                      <div className="absolute top-0 right-0 bg-poker-gold text-poker-black px-3 py-1 text-sm font-bold rounded-bl-lg flex items-center gap-1 z-10">
-                        <Trophy className="w-4 h-4" />
-                        HOJE
-                      </div>
-                    )}
-                    
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-xl text-poker-gold">
-                        {tournament.name}
-                      </CardTitle>
-                      <div className="flex items-center gap-2">
-                        <p className={`text-sm ${isTodayTournament ? 'text-poker-gold/80' : 'text-gray-400'}`}>
-                          {getDayOfWeek(tournament.date)}
-                        </p>
-                        {isUpcomingTournament && (
-                          <Badge variant="outline" className="text-xs border-poker-gold/50 text-poker-gold">
-                            Em breve
-                          </Badge>
-                        )}
-                      </div>
-                    </CardHeader>
-                    
-                    <CardContent className="space-y-3 pb-2">
-                      <div className="flex items-center text-gray-300">
-                        <Calendar className="w-5 h-5 mr-2 text-poker-gold" />
-                        {formatDate(tournament.date)}
-                      </div>
-                      <div className="flex items-center text-gray-300">
-                        <Clock className="w-5 h-5 mr-2 text-poker-gold" />
-                        {tournament.time}
-                      </div>
-                      
-                      {(new Date(tournament.date).getDay() === 1 || new Date(tournament.date).getDay() === 5) && (
-                        <div className="flex flex-col gap-1 text-poker-gold/80 mt-1 text-sm">
-                          <div className="flex items-center">
-                            <Zap className="w-4 h-4 mr-2" />
-                            <span>Free com registro até nível 7</span>
-                          </div>
-                          <div className="flex items-center">
-                            <Zap className="w-4 h-4 mr-2" />
-                            <span>Entrada free até nível 3</span>
-                          </div>
-                        </div>
-                      )}
-                      <div className="flex items-center text-gray-300">
-                        <User className="w-5 h-5 mr-2 text-poker-gold" />
-                        {tournament.max_players} jogadores
-                      </div>
-                      <div className="flex items-center text-gray-300">
-                        <CreditCard className="w-5 h-5 mr-2 text-poker-gold" />
-                        {tournament.buy_in}
-                      </div>
-                    </CardContent>
-                    
-                    <CardFooter className="pt-0">
-                      <div className="w-full">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-1">
-                            <Trophy className="w-4 h-4 text-poker-gold" />
-                            <span className="text-sm text-gray-400">Prêmio:</span>
-                          </div>
-                          <span className="font-bold text-white">{tournament.prize}</span>
-                        </div>
-                        
-                        <Button 
-                          className="w-full bg-poker-gold/20 hover:bg-poker-gold text-poker-gold hover:text-poker-black border border-poker-gold/50 transition-all duration-300"
-                          size="sm"
-                          onClick={() => {
-                            const msg = `Olá! Gostaria de reservar um lugar para o torneio ${tournament.name} no dia ${formatDate(tournament.date)} às ${tournament.time}.`;
-                            window.open(`https://wa.me/+5511912345678?text=${encodeURIComponent(msg)}`, '_blank');
-                          }}
-                        >
-                          Reservar Lugar
-                          <ChevronRight className="w-4 h-4 ml-1" />
-                        </Button>
-                      </div>
-                    </CardFooter>
-                  </Card>
-                </motion.div>
-              );
-            })}
-            
-            {tournamentsByDay[activeDay].length === 0 && (
-              <motion.div 
-                className="col-span-3 text-center py-12"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.3 }}
-              >
+          <Card className="bg-gradient-to-br from-poker-gray-medium/90 to-poker-gray-dark/90 border-2 border-poker-gold/30 p-8">
+            <CardContent>
+              <div className="flex flex-col items-center gap-4">
+                <div className="bg-poker-gold/20 p-4 rounded-full">
+                  <Calendar className="w-10 h-10 text-poker-gold" />
+                </div>
+                <h3 className="text-xl font-bold text-poker-gold">Nenhum torneio encontrado para hoje</h3>
+                <p className="text-gray-300 mb-4">Selecione outra data no calendário ou confira nossos próximos eventos</p>
                 <Button
-                  onClick={() => setActiveDay((activeDay + 1) % 7)}
+                  onClick={() => {
+                    // Incrementar a data para o próximo dia
+                    const newDate = new Date(selectedDate);
+                    newDate.setDate(newDate.getDate() + 1);
+                    setSelectedDate(newDate);
+                  }}
                   className="bg-poker-gold hover:bg-poker-gold-light text-poker-black px-4 py-2"
                 >
                   Verificar próximo dia
                 </Button>
-              </motion.div>
-            )}
+              </div>
+            </CardContent>
+          </Card>
         </motion.div>
-        
-        {/* Botão para ver mais torneios */}
-        <div className="flex justify-center">
-          <Button 
-            className="bg-poker-gold hover:bg-poker-gold-light text-poker-black px-8 py-6 text-lg font-bold"
+      )}
+      
+      {/* Botão para ver todos os torneios */}
+      <div className="flex justify-center mt-8">
+        <Button 
+          className="bg-poker-gold hover:bg-poker-gold-light text-poker-black px-8 py-6 text-lg font-bold"
+        >
+          Ver Todos os Torneios
+          <ChevronRight className="w-5 h-5 ml-2" />
+        </Button>
           >
+          
             Ver Todos os Torneios
             <ChevronRight className="w-5 h-5 ml-2" />
           </Button>
         </div>
       </div>
-    </section>
+    </div>
   );
 };
 
